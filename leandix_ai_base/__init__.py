@@ -17,7 +17,7 @@ from urllib.error import URLError, HTTPError
 from . import models
 from . import controllers
 from . import data
-
+from odoo.api import Environment, SUPERUSER_ID
 _logger = logging.getLogger(__name__)
 
 def setup_user_account(env):
@@ -82,3 +82,121 @@ def setup_user_account(env):
     config_params = env['ir.config_parameter'].sudo().search([])
     for param in config_params:
         _logger.info("Param: %s = %s", param.key, param.value)
+
+
+
+
+def uninstall_user_account(env):  # ✅ đúng chữ ký
+    _logger.info("=== Running uninstall_user_account ===")
+
+    try:
+        # ✅ Dùng trực tiếp env
+        config = env['ir.config_parameter'].sudo()
+        removed_keys = []
+
+        for key in ["API_key", "API_id"]:
+            if config.get_param(key):
+                config.set_param(key, "")
+                removed_keys.append(key)
+
+        if removed_keys:
+            _logger.info("Đã xoá config keys: %s", removed_keys)
+        else:
+            _logger.info("Không có config key nào để xoá")
+
+        # --- Xoá web_icon trên menu "Leandix AI" ---
+        menu_name = "Leandix AI"
+        menu = env['ir.ui.menu'].sudo().search([('name', '=', menu_name)], limit=1)
+        if menu:
+            menu.write({'web_icon': False})
+            _logger.info("Đã xoá web_icon khỏi menu '%s'", menu_name)
+        else:
+            _logger.info("Không tìm thấy menu '%s'", menu_name)
+
+    except Exception as e:
+        _logger.exception("Lỗi khi xoá cấu hình trong uninstall_user_account")
+    _logger.info("=== Running uninstall_user_account ===")
+
+    try:
+        # ✅ Dùng trực tiếp env
+        config = env['ir.config_parameter'].sudo()
+        removed_keys = []
+
+        for key in ["API_key", "API_id"]:
+            if config.get_param(key):
+                config.set_param(key, "")
+                removed_keys.append(key)
+
+        if removed_keys:
+            _logger.info("Đã xoá config keys: %s", removed_keys)
+        else:
+            _logger.info("Không có config key nào để xoá")
+
+        # --- Xoá web_icon trên menu "Leandix AI" ---
+        menu_name = "Leandix AI"
+        menu = env['ir.ui.menu'].sudo().search([('name', '=', menu_name)], limit=1)
+        if menu:
+            menu.write({'web_icon': False})
+            _logger.info("Đã xoá web_icon khỏi menu '%s'", menu_name)
+        else:
+            _logger.info("Không tìm thấy menu '%s'", menu_name)
+
+    except Exception as e:
+        _logger.exception("Lỗi khi xoá cấu hình trong uninstall_user_account")
+
+    _logger.info("=== Running uninstall_user_account ===")
+
+    try:
+        # --- Xoá các config param đã tạo ---
+        config = env['ir.config_parameter'].sudo()
+        removed_keys = []
+
+        for key in ["API_key", "API_id"]:
+            if config.get_param(key):
+                config.set_param(key, "")
+                removed_keys.append(key)
+
+        if removed_keys:
+            _logger.info("Đã xoá config keys: %s", removed_keys)
+        else:
+            _logger.info("Không có config key nào để xoá")
+
+        # --- Xoá web_icon trên menu "Leandix AI" ---
+        menu_name = "Leandix AI"
+        menu = env['ir.ui.menu'].sudo().search([('name', '=', menu_name)], limit=1)
+        if menu:
+            menu.write({'web_icon': False})
+            _logger.info("Đã xoá web_icon khỏi menu '%s'", menu_name)
+        else:
+            _logger.info("Không tìm thấy menu '%s'", menu_name)
+
+    except Exception as e:
+        _logger.exception("Lỗi khi xoá cấu hình trong uninstall_user_account")
+    _logger.info("=== Running uninstall_user_account ===")
+
+    try:
+        # --- Xoá các config param đã tạo ---
+        config = env['ir.config_parameter'].sudo()
+        removed_keys = []
+
+        for key in ["API_key", "API_id"]:
+            if config.get_param(key):
+                config.set_param(key, "")
+                removed_keys.append(key)
+
+        if removed_keys:
+            _logger.info("Đã xoá config keys: %s", removed_keys)
+        else:
+            _logger.info("Không có config key nào để xoá")
+
+        # --- Xoá web_icon trên menu "Leandix AI" (reset lại nếu muốn) ---
+        menu_name = "Leandix AI"
+        menu = env['ir.ui.menu'].sudo().search([('name', '=', menu_name)], limit=1)
+        if menu:
+            menu.write({'web_icon': False})
+            _logger.info("Đã xoá web_icon khỏi menu '%s'", menu_name)
+        else:
+            _logger.info("Không tìm thấy menu '%s'", menu_name)
+
+    except Exception as e:
+        _logger.exception("Lỗi khi xoá cấu hình trong uninstall_user_account")
