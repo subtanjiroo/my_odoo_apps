@@ -189,7 +189,6 @@ export class ChatController extends FormController {
                             currentP.innerHTML += '<br>';
                         } else {
                             this.saving = ""
-                            console.log("processedLineprocessedLine: ",processedLine)
                             if(NS == true){
                                 currentP.innerHTML += processedLine
                                 this.saving += botContent.innerHTML
@@ -216,7 +215,6 @@ export class ChatController extends FormController {
                 "add_message",
                 [chat_id, "system", this.saving]
             );
-            console.log("this.saving: ",this.saving)
         } catch (error) {
             console.error("❌ Lỗi khi gửi/nhận tin nhắn:", error);
             this.thinking = false;
