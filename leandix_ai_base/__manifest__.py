@@ -12,7 +12,7 @@
 # Note: When using Leandix AI, selected business data (such as chat prompts, relevant model fields, or context-specific metadata) will be securely transmitted to a remote AI processing server (via API) for analysis and response generation. This allows AI services to understand your context and deliver accurate results.
 
 {
-    'name': 'Leandix AI',
+    'name': 'Leandix AI - Basic',
     'version': '18.0.1.0.0',
     'summary': 'AI-powered insights and automation for Odoo',
     'description': """
