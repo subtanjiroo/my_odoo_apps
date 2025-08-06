@@ -93,12 +93,17 @@ class chat_history(models.Model):
     
     @api.model
     def add_message(self, chat_id, role, message):
-        msg = self.env['leandix.ai.base.chat.message'].create({
-            'message': message,
-            'role': role,
-            'chat_id': chat_id
-        })
-        return msg.id
+        try:
+            msg = self.env['leandix.ai.base.chat.message'].create({
+                'message': message,
+                'role': role,
+                'chat_id': chat_id
+            })
+            _logger.info(f"✅ Đã tạo message cho chat_id={chat_id}: {message}")
+            return msg
+        except Exception as e:
+            _logger.error(f"❌ Không thể tạo message: {str(e)}")
+            return False
 
     def delete_conversations(self, chat_ids):
         """

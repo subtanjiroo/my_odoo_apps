@@ -15,13 +15,12 @@ from odoo import models, fields
 class chat_message(models.Model):
     _name = 'leandix.ai.base.chat.message'
     _description = 'This message store the chat message between user and bot'
-    message = fields.Char(string='Message')
+    message = fields.Text(string='Message')
     role = fields.Selection([
         ('user', 'User'),
         ('system', 'System')
     ], string='Role')
     chat_id = fields.Many2one('leandix.ai.base.chat.history', string='Chat ID')
-
 
 
 

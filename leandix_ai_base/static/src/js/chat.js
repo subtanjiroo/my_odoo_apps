@@ -112,8 +112,12 @@ export class ChatController extends FormController {
             const response = await fetch(`/leandix_ai_base/get_direct_answer?${params.toString()}`, {
                 method: 'GET',
                 cache: 'no-store',
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'text/event-stream' // hoặc 'application/octet-stream' nếu không dùng SSE
+                }
             });
+
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -189,7 +193,6 @@ export class ChatController extends FormController {
                             currentP.innerHTML += '<br>';
                         } else {
                             this.saving = ""
-                            console.log("processedLineprocessedLine: ",processedLine)
                             if(NS == true){
                                 currentP.innerHTML += processedLine
                                 this.saving += botContent.innerHTML
@@ -211,12 +214,13 @@ export class ChatController extends FormController {
             await read();
             const ConvId = this.current_convesation_id;
             const chat_id = (ConvId && typeof ConvId === 'object') ? ConvId.value : ConvId;
+            
             const result = await this.orm.call(
                 "leandix.ai.base.chat.history",
                 "add_message",
                 [chat_id, "system", this.saving]
             );
-            console.log("this.saving: ",this.saving)
+            console.log("result: ",result)
         } catch (error) {
             console.error("❌ Lỗi khi gửi/nhận tin nhắn:", error);
             this.thinking = false;
@@ -268,116 +272,118 @@ _processTableInitialization(chunk, containerElement) {
         this.currentTable.appendChild(row);
     }
 }
-    /**
-     * Parses the accumulated markdownBuffer incrementally, handling bold formatting and <br>.
-     * This function is designed to handle incomplete markdown tags across chunks.
-     * It updates this.markdownBuffer (by setting it to the unparsed remainder)
-     * and returns the total accumulated HTML.
-     * @param {string} buffer The current accumulated markdown text (this.markdownBuffer).
-     * @param {boolean} isEnd True if the stream has finished.
-     * @returns {string} The complete HTML string parsed so far.
-     */
-    _parseStreamingMarkdown(buffer, isEnd) {
-        let htmlSegments = [];
-        let remainingBuffer = buffer;
+/**
+ * Parses the accumulated markdownBuffer incrementally, handling bold formatting and <br>.
+ * This function is designed to handle incomplete markdown tags across chunks.
+ * It updates this.markdownBuffer (by setting it to the unparsed remainder)
+ * and returns the total accumulated HTML.
+ * @param {string} buffer The current accumulated markdown text (this.markdownBuffer).
+ * @param {boolean} isEnd True if the stream has finished.
+ * @returns {string} The complete HTML string parsed so far.
+ */
+_parseStreamingMarkdown(buffer, isEnd) {
+    let htmlSegments = [];
+    let remainingBuffer = buffer;
 
-        let lines = remainingBuffer.split('<br>');
-        let inList = false;
+    let lines = remainingBuffer.split('<br>');
+    let inList = false;
 
-        const closeListIfNeeded = () => {
-            if (inList) {
-                htmlSegments.push('</ul>');
-                inList = false;
+    const closeListIfNeeded = () => {
+        if (inList) {
+            htmlSegments.push('</ul>');
+            inList = false;
+        }
+    };
+
+    const escapeExceptTags = (text) => {
+        return text
+            .replace(/&(?!(?:[a-z]+|#\d+);)/gi, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    };
+
+    for (let rawLine of lines) {
+        let line = rawLine.trim();
+
+        if (!line) {
+            closeListIfNeeded();
+            if (htmlSegments.length > 0 && htmlSegments[htmlSegments.length - 1] !== '<br>') {
+                htmlSegments.push('<br>');
             }
-        };
-
-        const escapeExceptTags = (text) => {
-            return text
-                .replace(/&(?!(?:[a-z]+|#\d+);)/gi, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        };
-
-        for (let rawLine of lines) {
-            let line = rawLine.trim();
-
-            if (!line) {
-                closeListIfNeeded();
-                if (htmlSegments.length > 0 && htmlSegments[htmlSegments.length - 1] !== '<br>') {
-                    htmlSegments.push('<br>');
-                }
-                continue;
-            }
-
-            if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
-                closeListIfNeeded();
-                htmlSegments.push('<hr>');
-                continue;
-            }
-            // Headings
-            if (/^#{1,6}\s/.test(line)) {
-                closeListIfNeeded();
-                const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
-                const level = headingMatch[1].length;
-                const content = escapeExceptTags(headingMatch[2]);
-                htmlSegments.push(`<h${level}>${content}</h${level}>`);
-                continue;
-            }
-
-            // Bullet lists: - or * or +
-            if (/^[-*+]\s+/.test(line)) {
-                if (!inList) {
-                    htmlSegments.push('<ul>');
-                    inList = true;
-                }
-                const item = line.replace(/^[-*+]\s+/, '');
-                const parsedItem = this._renderInlineMarkdown(item);
-                htmlSegments.push(`<li>${parsedItem}</li>`);
-                continue;
-            } else {
-                closeListIfNeeded();
-            }
-
-            // Paragraph or plain text
-            const parsedLine = this._renderInlineMarkdown(line);
-            htmlSegments.push(`<p>${parsedLine}</p>`);
+            continue;
         }
 
-        closeListIfNeeded();
-        this.markdownBuffer = '';
-        return this.currentHtmlOutput + htmlSegments.join('');
+        if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+            closeListIfNeeded();
+            htmlSegments.push('<hr>');
+            continue;
+        }
+        // Headings
+        if (/^#{1,6}\s/.test(line)) {
+            closeListIfNeeded();
+            const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+            const level = headingMatch[1].length;
+            const content = escapeExceptTags(headingMatch[2]);
+            htmlSegments.push(`<h${level}>${content}</h${level}>`);
+            continue;
+        }
+
+        // Bullet lists: - or * or +
+        if (/^[-*+]\s+/.test(line)) {
+            if (!inList) {
+                htmlSegments.push('<ul>');
+                inList = true;
+            }
+            const item = line.replace(/^[-*+]\s+/, '');
+            const parsedItem = this._renderInlineMarkdown(item);
+            htmlSegments.push(`<li>${parsedItem}</li>`);
+            continue;
+        } else {
+            closeListIfNeeded();
+        }
+
+        // Paragraph or plain text
+        const parsedLine = this._renderInlineMarkdown(line);
+        htmlSegments.push(`<p>${parsedLine}</p>`);
     }
 
-    _renderInlineMarkdown(text) {
-        // Xử lý inline Markdown: **bold**, _italic_, `code`
-        let result = text;
+    closeListIfNeeded();
+    this.markdownBuffer = '';
+    return this.currentHtmlOutput + htmlSegments.join('');
+}
 
-        // Bold: **text**
-        result = result.replace(/\*\*(.+?)\*\*/g, (_, m) => `<strong>${this._escapeHtml(m)}</strong>`);
+_renderInlineMarkdown(text) {
+    // Xử lý inline Markdown: **bold**, _italic_, `code`
+    let result = text;
 
-        // Italic: _text_ or *text*
-        result = result.replace(/(?:\*|_)(.+?)(?:\*|_)/g, (_, m) => `<em>${this._escapeHtml(m)}</em>`);
+    // Bold: **text**
+    result = result.replace(/\*\*(.+?)\*\*/g, (_, m) => `<strong>${this._escapeHtml(m)}</strong>`);
 
-        // Inline code: `code`
-        result = result.replace(/`(.+?)`/g, (_, m) => `<code>${this._escapeHtml(m)}</code>`);
+    // Italic: _text_ or *text*
+    result = result.replace(/(?:\*|_)(.+?)(?:\*|_)/g, (_, m) => `<em>${this._escapeHtml(m)}</em>`);
 
-        // Escape remaining HTML
-        return result;
-    }
+    // Inline code: `code`
+    result = result.replace(/`(.+?)`/g, (_, m) => `<code>${this._escapeHtml(m)}</code>`);
 
-    _escapeHtml(str) {
-        return str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+    // Escape remaining HTML
+    return result;
+}
+
+_escapeHtml(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 _cleanInconsistentWhitespaces(html) {
     const textCleaner = (text) => {
         return text
             .replace(/(\p{L})\s(?=\p{L})/gu, '$1')      // remove space between letters
+            .replace(/(?<=\d)\s*,\s*(?=\d)/g, ',')      // 200 ,000 -> 200,000
+            .replace(/(?<=\d)\s+(?=\d)/g, '')           //25 03 -> 2503
             .replace(/\s*@\s*/g, '@')                   // remove space around @
             .replace(/\s*\.\s*/g, '.')                  // remove space around .
             .replace(/\s{2,}/g, ' ')                    // collapse multiple spaces

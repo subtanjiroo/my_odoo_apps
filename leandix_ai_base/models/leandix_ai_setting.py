@@ -47,8 +47,8 @@ class LeandixAISetting(models.TransientModel):
 
             if not api_id:
                 raise UserError(_("Không tìm thấy API ID trong hệ thống."))
-            # url = "https://api.leandix.com/reset_key"
-            url = "http://chat_engine-back_end-1:5000/reset_key"
+            url = "https://api.leandix.com/reset_key"
+            # url = "http://chat_engine-back_end-1:5000/reset_key"
             headers = {
             "Accept": "*/*",
             "Connection": "keep-alive",

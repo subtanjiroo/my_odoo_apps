@@ -14,6 +14,7 @@ from odoo.http import request, Response
 from odoo import http
 from odoo.http import request
 import logging
+import copy
 from datetime import datetime
 from ..models.utilities import *
 _logger = logging.getLogger(__name__)
@@ -33,7 +34,6 @@ def serialize_datetimes(data):
 enviroment_api = "https://api.leandix.com"
 
 class LeandixChatController(http.Controller):
-
     @http.route('/leandix_ai_base/get_direct_answer', type='http', auth='user', cors='*', csrf=False)
     def get_direct_answer(self, **kwargs):
         user_message = kwargs.get('message')
@@ -52,27 +52,48 @@ class LeandixChatController(http.Controller):
         API_key = config.get_param("API_key")
         lang = ai_model.get_current_user_lang().get("lang", "en_US")
         current_convs_id = request.session.get("current_convs_id", {})
-        
+        convs_id = current_convs_id.get("value") or ""
+
         if not API_key:
-            return "[E]" + get_error_message(422,lang)
+            return "[E]" + get_error_message(422, lang)
 
         # Khởi tạo conversation & history
         new_conversation = ai_session.check_new_conversation()
-        convs_id = current_convs_id.get("value")
-        history = ai_history.get_current_chat_history_by_uid(current_user_id, convs_id) or []
-        if new_conversation:
-            new_conv = ai_model.naming_and_create_conversation(user_message, chat_model, current_user_id)
-            _logger.info(f"new_convnew_convnew_conv: {new_conv}")
 
-            if isinstance(new_conv, int):
-                return "[E]" + get_error_message(new_conv, lang)
-            
-            ai_history.add_message(new_conv["id"], "user", user_message)
-            ai_session.save_current_chat_id(new_conv["id"])
-            convs_id = new_conv["id"]
-        else:
-            _logger.info(f"convs_idconvs_idconvs_id: {convs_id}")
-            ai_history.add_message(convs_id, "user", user_message)
+        _logger.info(f"convs_idconvs_idconvs_id: {convs_id}")
+
+        # Sao lưu history hiện tại trước khi mọi thay đổi xảy ra
+        history_safe = ai_history.get_current_chat_history_by_uid(current_user_id, convs_id) or []
+        history = copy.deepcopy(history_safe)
+
+        try:
+            if new_conversation:
+                new_conv = ai_model.naming_and_create_conversation(user_message, chat_model, current_user_id)
+                _logger.info(f"new_convnew_convnew_conv: {new_conv}")
+
+                if isinstance(new_conv, int):
+                    return "[E]" + get_error_message(new_conv, lang)
+
+                test = ai_history.add_message(new_conv["id"], "user", user_message)
+                _logger.info(f"testtest1: {test}")
+
+                ai_session.save_current_chat_id(new_conv["id"])
+                convs_id = new_conv["id"]
+
+                # 🟢 Commit sớm để đảm bảo record được ghi trước khi stream
+                request.env.cr.commit()
+            else:
+                _logger.info(f"user_messageuser_messageuser_message: {user_message}")
+                test = ai_history.add_message(convs_id, "user", user_message)
+                _logger.info(f"testtest2: {test}")
+
+                # 🟢 Commit sớm trong nhánh else
+                request.env.cr.commit()
+        except Exception as e:
+            _logger.error(f"[get_direct_answer] Error before streaming: {str(e)}")
+            request.env.cr.rollback()
+            return Response("[E]Lỗi trong quá trình xử lý cuộc trò chuyện.", status=500)
+
 
         retry_count = 0
         max_retry = 3
@@ -102,8 +123,9 @@ class LeandixChatController(http.Controller):
 
                 _logger.info(f"🔁 Thử lần {retry_count + 1} với SQL:\n{sql_query}")
                 sql_result = ai_model.get_data_from_DB(sql_query, current_user_id)
-                _logger.info(f"🎯 Kết quả sql_result:\n{sql_result}")
 
+
+                _logger.info(f"🎯 Kết quả sql_result:\n{sql_result}")
                 if sql_result and sql_result.get("data"):  # ✅ Nếu có data thật thì break
                     error = None
                     break
@@ -146,18 +168,16 @@ class LeandixChatController(http.Controller):
             "lang": lang,
             "current_chat_id": str(current_convs_id),
         }
-
+        _logger.info(f"Payload_streaming: {payload}")
         api_url = f"{enviroment_api}/answer_streaming"
         _logger.info("⚡ Bắt đầu stream tới AI engine...")
-
         def generate():
             buffer = ""
             for chunk in ai_model.send_message_to_answer_api_stream_prepared(payload, api_url):
-                _logger.info(f"🧩 Chunk nhận được: {chunk[:50]}")
+                _logger.info(f"🧩 Chunk nhận được: {chunk}")
                 buffer += chunk
                 yield chunk
             yield f"\n[SAVE_CHAT_ID]:{convs_id}"
-
-        return Response(generate(), content_type='text/plain;charset=utf-8')
+        return Response(generate(), content_type='text/event-stream;charset=utf-8')
 
 

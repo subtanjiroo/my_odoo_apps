@@ -281,7 +281,12 @@ class chat_model(models.Model):
             req = urllib.request.Request(
                 api_url,
                 data=data_bytes,
-                headers={"Content-Type": "application/json"},
+                headers = {
+                    "Content-Type": "application/json",
+                    "Accept": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0 Safari/537.36",
+                },
                 method="POST"
             )
 
@@ -291,7 +296,7 @@ class chat_model(models.Model):
 
         except Exception as stream_error:
             _logger.error(f"[Streaming Error]: {stream_error}")
-            yield f"[ERROR]: {str(stream_error)}"
+            yield f"[ERROR]123: {str(stream_error)}"
 
     # This function will naming the conversation and create conversation in the Odoo DB
     @api.model
@@ -321,6 +326,7 @@ class chat_model(models.Model):
 
             name_data = data.get("name")
             named = self.env['leandix.ai.base.chat.history'].create_new_conversation(userid, name_data)
+            self.env.cr.flush()
             return named
 
         except urllib.error.HTTPError as e:
@@ -332,6 +338,10 @@ class chat_model(models.Model):
 
 
     def get_data_from_DB(self, query, user_id, **kwargs):
+        env = request.env
+        current_convs_id = request.session.get("current_convs_id", {})
+        convs_id = current_convs_id.get("value") or ""      
+
         # Lọc thẻ tag cho sql
         def extract_tag_content(text, tag):
             try:
@@ -408,7 +418,7 @@ class chat_model(models.Model):
 
 
         current_user_id = kwargs.get('current_user_id', None)
-
+        ai_history = env['leandix.ai.base.chat.history'].sudo()
         try:
             if not query or not isinstance(query, str):
                 return {"message": "Không cần lấy dữ liệu từ Odoo"}

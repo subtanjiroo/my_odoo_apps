@@ -47,6 +47,5 @@
     'application': True,
     'auto_install': False,
     'post_init_hook': 'setup_user_account',
-    'uninstall_hook': 'uninstall_user_account',
     'license': 'Other proprietary'
 }
