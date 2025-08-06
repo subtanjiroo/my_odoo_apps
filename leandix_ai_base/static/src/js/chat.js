@@ -220,7 +220,6 @@ export class ChatController extends FormController {
                 "add_message",
                 [chat_id, "system", this.saving]
             );
-            console.log("result: ",result)
         } catch (error) {
             console.error("❌ Lỗi khi gửi/nhận tin nhắn:", error);
             this.thinking = false;
